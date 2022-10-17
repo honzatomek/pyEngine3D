@@ -2,11 +2,12 @@ import graphics.screen
 import graphics.face
 import graphics.vertex
 import copy
+import sys
 
 class Engine3D:
     def __resetDrag(self, event):
         self.__prev = []
-    
+
     def __drag(self, event):
         if self.__prev:
             self.rotate('y', (event.x - self.__prev[0]) / 20)
@@ -18,7 +19,7 @@ class Engine3D:
     def __select(self, event):
         zeros = self.screen.zeros
         event = (event.x - zeros[0], event.y - zeros[1])
-            
+
         possibilities = []
         for a in range(-6, 5):
             for b in range(-6, 5):
@@ -31,14 +32,14 @@ class Engine3D:
 
             i = self.points[self.__selected]
             self.__axis = [[copy.deepcopy(i) for a in range(2)] for b in range(3)]
-            
+
             self.__axis[0][0].x -= 40 / self.scale
             self.__axis[0][1].x += 40 / self.scale
             self.__axis[1][0].y -= 40 / self.scale
             self.__axis[1][1].y += 40 / self.scale
             self.__axis[2][0].z -= 40 / self.scale
             self.__axis[2][1].z += 40 / self.scale
-            
+
             self.__axis = [[point.flatten(self.scale, self.distance) for point in i] for i in self.__axis]
             self.__axis = [[[i[0] + zeros[0], i[1] + zeros[1]] for i in j] for j in self.__axis]
             self.__axis = [self.screen.createLine(self.__axis[0], 'red'), self.screen.createLine(self.__axis[1], 'green'), self.screen.createLine(self.__axis[2], 'blue')]
@@ -99,20 +100,28 @@ class Engine3D:
         self.screen.zeros[1] += 5
         self.clear()
         self.render()
-        
+
     def writePoints(self, points):
         self.points = []
         for point in points:
             self.points.append(graphics.vertex.Vertex(point))
-            
+
     def writeTriangles(self, triangles):
-        self.triangles = []
+        # self.elements = []
         for triangle in triangles:
             if len(triangle) != 4:
                 triangle.append('gray')
-            self.triangles.append(graphics.face.Face(triangle))
-            
-    def __init__(self, points, triangles, width=1000, height=700, distance=6, scale=100, title='3D', background='white'):
+            self.elements.append(graphics.face.Face3(triangle))
+
+    def writeQuads(self, quads):
+        # self.quads = []
+        for quad in quads:
+            if len(quad) != 5:
+                quad.append('gray')
+            self.elements.append(graphics.face.Face4(quad))
+
+
+    def __init__(self, points, triangles=None, quads=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white'):
         #object parameters
         self.distance = distance
         self.scale = scale
@@ -129,6 +138,7 @@ class Engine3D:
         self.screen.window.bind('s', self.__cameradown)
         self.screen.window.bind('a', self.__cameraleft)
         self.screen.window.bind('d', self.__cameraright)
+        self.screen.window.bind('q', sys.exit)
 
         # this is for editing the model
         self.__selected = None
@@ -141,13 +151,17 @@ class Engine3D:
         self.screen.window.bind('z', self.__selectz)
         self.screen.window.bind('<Left>', self.__movedown)
         self.screen.window.bind('<Right>', self.__moveup)
-        
+
         #store coordinates
         self.writePoints(points)
         self.flattened = []
 
         #store faces
-        self.writeTriangles(triangles)
+        self.elements = []
+        if triangles is not None:
+            self.writeTriangles(triangles)
+        if quads is not None:
+            self.writeQuads(quads)
 
     def clear(self):
         #clear display
@@ -164,15 +178,23 @@ class Engine3D:
         for point in self.points:
             self.flattened.append(point.flatten(self.scale, self.distance))
 
-        #get coordinates to draw triangles
-        triangles = []
-        for triangle in self.triangles:
-            avgZ = -(self.points[triangle.a].z + self.points[triangle.b].z + self.points[triangle.c].z) / 3
-            triangles.append((self.flattened[triangle.a], self.flattened[triangle.b], self.flattened[triangle.c], triangle.color, avgZ))
+        #get coordinates to draw triangles and quads
+        elements = []
+        for element in self.elements:
+            if type(element) is graphics.face.Face3:
+                avgZ = -(self.points[element.a].z + self.points[element.b].z + self.points[element.c].z) / 3
+                elements.append((self.flattened[element.a], self.flattened[element.b], self.flattened[element.c], element.color, avgZ))
+            elif type(element) is graphics.face.Face4:
+                avgZ = -(self.points[element.a].z + self.points[element.b].z + self.points[element.c].z + self.points[element.d].z) / 4
+                elements.append((self.flattened[element.a], self.flattened[element.b], self.flattened[element.c], self.flattened[element.d], element.color, avgZ))
 
         #sort triangles from furthest back to closest
-        triangles = sorted(triangles,key=lambda x: x[4])
+        elements = sorted(elements,key=lambda x: x[-1])
 
-        #draw triangles
-        for triangle in triangles:
-            self.screen.createTriangle(triangle[0:3], triangle[3])
+        #draw triangles and quads
+        for element in elements:
+            if len(element) == 5:
+                self.screen.createTriangle(element[0:3], element[3])
+            elif len(element) == 6:
+                self.screen.createQuad(element[0:4], element[4])
+
