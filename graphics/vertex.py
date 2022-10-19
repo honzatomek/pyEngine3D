@@ -1,43 +1,59 @@
 import math
+import numpy as np
 
 class Vertex:
-    def __init__(self, point):
+    def __init__(self, point, displacement=None):
         #store x, y, z coordinates
         (x,y,z) = point
         self.x = x
         self.y = y
         self.z = z
 
-    def flatten(self, scale, distance):
-        #calculate 2D coordinates from 3D point
-        projectedY = int(((self.y * distance) / (self.z + distance)) * scale)
-        projectedX = int(((self.x * distance) / (self.z + distance)) * scale)
-        return (projectedX, projectedY)
-
-    def rotate(self, axis, angle):
-        #rotate point around axis
-        angle = angle / 450 * 180 / math.pi
-        sqrt2 = math.sqrt(2)
-        if axis == 'z':
-            #rotate aroud Z axis
-            newX = self.x * math.cos(angle) - self.y * math.sin(angle)
-            newY = self.y * math.cos(angle) + self.x * math.sin(angle)
-            newZ = self.z
-        elif axis == 'x':
-            #rotate around X axis
-            newY = self.y * math.cos(angle) - self.z * math.sin(angle)
-            newZ = self.z * math.cos(angle) + self.y * math.sin(angle)
-            newX = self.x
-        elif axis == 'y':
-            #rotate around Y axis
-            newX = self.x * math.cos(angle) - self.z * math.sin(angle)
-            newZ = self.z * math.cos(angle) + self.x * math.sin(angle)
-            newY = self.y
+        if displacement is None:
+            self.dx = 0.
+            self.dy = 0.
+            self.dz = 0.
         else:
-            raise ValueError('invalid rotation axis')
-        self.x = newX
-        self.y = newY
-        self.z = newZ
+            self.dx = displacement[0]
+            self.dy = displacement[1]
+            self.dz = displacement[2]
+
+    def d(self, Tr, Tt, ds=0.):
+        """
+        returns point distance from screen
+        In:
+            Tr - 3x3 rotations matrix
+            Tt - 3x1 translation vector
+            ds - displacement scale (float)
+        """
+        # calculate rotated 3D coordinates
+        X = Tr[2,:] @ np.array([self.x + ds * self.dx, self.y + ds * self.dy, self.z + ds * self.dz]).reshape((3, 1)) + Tt[2,0]
+
+        return X[0]
+
+    def square(self, ds=0.):
+        """
+        pythagorean displacement length
+        In:
+            ds - displacement scale (float)
+        """
+        return (self.dx ** 2 + self.dy ** 2 + self.dz ** 2) ** 0.5
+
+    def flatten(self, scale, distance, Tr, Tt, ds=0.):
+        """
+        returns point projection to screen
+        In:
+            Tr - 3x3 rotations matrix
+            Tt - 3x1 translation vector
+            ds - displacement scale (float)
+        """
+        # calculate rotated 3D coordinates
+        X = Tr @ np.array([self.x + ds * self.dx, self.y + ds * self.dy, self.z + ds * self.dz]).reshape((3, 1)) + Tt
+
+        # calculate 2D coordinates from 3D point
+        projectedX = int(((X[0,0] * distance) / (X[2,0] + distance)) * scale)
+        projectedY = int(((X[1,0] * distance) / (X[2,0] + distance)) * scale)
+        return (projectedX, projectedY)
 
     def move(self, axis, value):
         if axis == 'x':

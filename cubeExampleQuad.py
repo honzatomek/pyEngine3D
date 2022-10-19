@@ -10,8 +10,8 @@ test = graphics.engine.Engine3D(points, quads=quads, title='Cube')
 
 def animation():
     test.clear()
-    test.rotate('y', 0.01)
-    test.rotate('x', 0.01)
+    # test.rotate('y', 0.01)
+    # test.rotate('x', 0.01)
     test.render()
     test.screen.after(1, animation)
 

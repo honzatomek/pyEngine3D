@@ -9,14 +9,19 @@ import numpy as np
 class Engine3D:
     def __resetDrag(self, event):
         self.__prev = []
+        self.__restore_deform(event)
 
     def __drag(self, event):
         if self.__prev:
             self.rotate('y', (event.x - self.__prev[0]) / 20)
             self.rotate('x', (event.y - self.__prev[1]) / 20)
             self.clear()
+            deform = self.deform
+            self.deform = False
             self.render()
+            self.deform = deform
         self.__prev = [event.x, event.y]
+        self.__save_deform(event)
 
     def __select(self, event):
         zeros = self.screen.zeros
@@ -42,7 +47,7 @@ class Engine3D:
             self.__axis[2][0].z -= 40 / self.scale
             self.__axis[2][1].z += 40 / self.scale
 
-            self.__axis = [[point.flatten(self.scale, self.distance) for point in i] for i in self.__axis]
+            self.__axis = [[point.flatten(self.scale, self.distance, self.Tt, self.Tt) for point in i] for i in self.__axis]
             self.__axis = [[[i[0] + zeros[0], i[1] + zeros[1]] for i in j] for j in self.__axis]
             self.__axis = [self.screen.createLine(self.__axis[0], 'red'), self.screen.createLine(self.__axis[1], 'green'), self.screen.createLine(self.__axis[2], 'blue')]
 
@@ -59,23 +64,35 @@ class Engine3D:
         if self.__selected != None and self.__moveaxis != None:
             self.points[self.__selected].move(self.__moveaxis, 0.1)
             self.clear()
+            deform = self.deform
+            self.deform = False
             self.render()
+            self.deform = deform
 
     def __movedown(self, event):
         if self.__selected != None and self.__moveaxis != None:
             self.points[self.__selected].move(self.__moveaxis, -0.1)
             self.clear()
+            deform = self.deform
+            self.deform = False
             self.render()
+            self.deform = deform
 
     def __zoomin(self, event):
         self.scale += 2.5
         self.clear()
+        deform = self.deform
+        self.deform = False
         self.render()
+        self.deform = deform
 
     def __zoomout(self, event):
         self.scale -= 2.5
         self.clear()
+        deform = self.deform
+        self.deform = False
         self.render()
+        self.deform = deform
 
     def __deselect(self, event):
         if self.__selected != None:
@@ -86,27 +103,103 @@ class Engine3D:
     def __cameraleft(self, event):
         self.screen.zeros[0] -= 5
         self.clear()
+        deform = self.deform
+        self.deform = False
         self.render()
+        self.deform = deform
 
     def __cameraright(self, event):
         self.screen.zeros[0] += 5
         self.clear()
+        deform = self.deform
+        self.deform = False
         self.render()
+        self.deform = deform
 
     def __cameraup(self, event):
         self.screen.zeros[1] -= 5
         self.clear()
+        deform = self.deform
+        self.deform = False
         self.render()
+        self.deform = deform
 
     def __cameradown(self, event):
         self.screen.zeros[1] += 5
         self.clear()
+        deform = self.deform
+        self.deform = False
+        self.render()
+        self.deform = deform
+
+    def __deform(self, event):
+        self.deform = not self.deform
+
+    def __extents(self, points):
+        points = np.array(points)
+        minX, maxX = np.min(points[:,0]), np.max(points[:,0])
+        minY, maxY = np.min(points[:,1]), np.max(points[:,1])
+        minZ, maxZ = np.min(points[:,2]), np.max(points[:,2])
+        return ((minX, minY, minZ), (maxX, maxY, maxZ)), ((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
+
+    def next_tstep(self):
+        self.tstep += 1
+        if self.tstep > self.num_steps:
+            self.tstep = 0
+        elif self.tstep < 0:
+            self.tstep = self.num_steps
+
+    def __next_tstep(self, event=None):
+        if event is not None:
+            self.deform = False
+        self.tstep += 1
+        if self.tstep > self.num_steps:
+            self.tstep = 0
+        elif self.tstep < 0:
+            self.tstep = self.num_steps
+        self.clear()
         self.render()
 
-    def writePoints(self, points):
+    def __prev_tstep(self, event=None):
+        if event is not None:
+            self.deform = False
+        self.tstep -= 1
+        if self.tstep > self.num_steps:
+            self.tstep = 0
+        elif self.tstep < 0:
+            self.tstep = self.num_steps
+        self.clear()
+        self.render()
+
+    def dscale(self):
+        scale = np.sin(self.tstep / self.num_steps * 2 * np.pi)
+        return scale
+
+    def palette_range(self):
+        dmin = self.point[0].square(self.dscale)
+        dmax = dmin
+        for point in self.points:
+            dmin = dmin if point.square(self.dscale) < dmin else dmin
+            dmax = dmax if point.square(self.dscale) > dmax else dmax
+        return (dmin, dmax)
+
+    def palette(self, fraction):
+        range = len(self.p)
+        i = int((range - 1) * fraction)
+        col1 = self.p[i]
+        col2 = self.p[i+1]
+        f = (fraction - i * range) * range
+
+        return (int((col2[0] - col1[0]) * f), int((col2[1] - col1[1]) * f), int((col2[2] - col1[2]) * f))
+
+    def writePoints(self, points, displacement):
         self.points = []
-        for point in points:
-            self.points.append(graphics.vertex.Vertex(point))
+        if displacement is not None:
+            for point, defor in zip(points, displacement):
+                self.points.append(graphics.vertex.Vertex(point, displacement=defor))
+        else:
+            for point in points:
+                self.points.append(graphics.vertex.Vertex(point))
 
     def writeLines(self, lines):
         # self.elements = []
@@ -129,38 +222,42 @@ class Engine3D:
                 quad.append('gray')
             self.elements.append(graphics.face.Face4(quad))
 
-    def __extents(self, points):
-        points = np.array(points)
-        minX, maxX = np.min(points[:,0]), np.max(points[:,0])
-        minY, maxY = np.min(points[:,1]), np.max(points[:,1])
-        minZ, maxZ = np.min(points[:,2]), np.max(points[:,2])
-        return ((minX, minY, minZ), (maxX, maxY, maxZ)), ((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
+    def __save_deform(self, event=None):
+        if self.__pressed == 0:
+            if event.keysym != 'p':
+                self.__deform = self.deform
+                self.deform = False
+            self.__pressed = 1
 
-    def __init__(self, points, lines=None, triangles=None, quads=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white'):
-        #object parameters
-        self.distance = distance
-        self.extents, self.offset = self.__extents(points)
-        # self.scale = scale
-        self.scale = 0.9 * min(height, width) / max(self.extents[1][0]-self.extents[0][0], self.extents[1][1]-self.extents[0][1], self.extents[1][2]-self.extents[0][2])
+    def __restore_deform(self, event=None):
+        if self.__pressed == 1:
+            if event.keysym != 'p':
+                self.deform = self.__deform
+            self.__pressed = 0
 
-        #initialize display
-        self.screen = graphics.screen.Screen(width, height, title, background)
+    def bind_keys(self):
+        self.__pressed = 0
+
+        # initialize display
         self.screen.window.bind('<B1-Motion>', self.__drag)
-        self.__prev = []
         self.screen.window.bind('<ButtonRelease-1>', self.__resetDrag)
 
         self.screen.window.bind('<Up>', self.__zoomin)
+        self.screen.window.bind('+', self.__zoomin)
         self.screen.window.bind('<Down>', self.__zoomout)
+        self.screen.window.bind('-', self.__zoomout)
         self.screen.window.bind('w', self.__cameraup)
         self.screen.window.bind('s', self.__cameradown)
         self.screen.window.bind('a', self.__cameraleft)
         self.screen.window.bind('d', self.__cameraright)
+        self.screen.window.bind('p', self.__deform)
         self.screen.window.bind('q', sys.exit)
+        self.screen.window.bind('n', self.__next_tstep)
+        self.screen.window.bind('N', self.__prev_tstep)
+        self.screen.window.bind('<KeyPress>', self.__save_deform)
+        self.screen.window.bind('<KeyRelease>', self.__restore_deform)
 
         # this is for editing the model
-        self.__selected = None
-        self.__axis = []
-        self.__moveaxis = None
         self.screen.window.bind('<ButtonPress-3>', self.__select)
         self.screen.window.bind('<ButtonRelease-3>', self.__deselect)
         self.screen.window.bind('x', self.__selectx)
@@ -169,11 +266,33 @@ class Engine3D:
         self.screen.window.bind('<Left>', self.__movedown)
         self.screen.window.bind('<Right>', self.__moveup)
 
-        #store coordinates
-        self.writePoints(points)
+    def __init__(self, points, lines=None, triangles=None, quads=None, displacement=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white', num_steps=10):
+        # object parameters
+        self.distance = distance
+        self.extents, self.offset = self.__extents(points)
+        self.scale = 0.6 * min(height, width) / max(self.extents[1][0]-self.extents[0][0], self.extents[1][1]-self.extents[0][1], self.extents[1][2]-self.extents[0][2])
+        self.p = np.array([[0., 0., 255.], [0., 255., 0.], [255., 255., 0.], [255., 0., 0.], [255., 0., 255.]], dtype=float)
+
+        # transformation matrix
+        self.Tr = np.eye(3, dtype=float)
+        self.Tt = np.zeros((3, 1), dtype=float)
+
+        # initialize display
+        self.screen = graphics.screen.Screen(width, height, title, background)
+        self.__prev = []
+
+        # this is for editing the model
+        self.__selected = None
+        self.__axis = []
+        self.__moveaxis = None
+
+        self.bind_keys()
+
+        # store coordinates
+        self.writePoints(points, displacement)
         self.flattened = []
 
-        #store faces
+        # store faces
         self.elements = []
         if lines is not None:
             self.writeLines(lines)
@@ -182,41 +301,62 @@ class Engine3D:
         if quads is not None:
             self.writeQuads(quads)
 
+        # displacement
+        self.num_steps = num_steps
+        self.tstep = 0
+        self.dt = 1
+        # self.dscale = 1.
+
+        self.deform = False
+        self.__deform = self.deform
+
     def clear(self):
-        #clear display
+        # clear display
         self.screen.clear()
 
     def rotate(self, axis, angle):
-        #rotate model around axis
-        for point in self.points:
-            point.rotate(axis, angle)
+        if axis == 'x':
+            T = np.array([[1,             0,              0],
+                          [0, np.cos(angle), -np.sin(angle)],
+                          [0, np.sin(angle),  np.cos(angle)]], dtype=float)
+        elif axis == 'y':
+            T = np.array([[np.cos(angle), 0, -np.sin(angle)],
+                          [0,             1,              0],
+                          [np.sin(angle), 0,  np.cos(angle)]], dtype=float)
+        elif axis == 'z':
+            T = np.array([[np.cos(angle), -np.sin(angle), 0],
+                          [np.sin(angle),  np.cos(angle), 0],
+                          [            0,              0, 1]], dtype=float)
+        else:
+          raise ValueError(f'invalid rotation axis {axis:s}')
+        self.Tr = T @ self.Tr
 
     def render(self):
-        #calculate flattened coordinates (x, y)
+        if self.deform:
+            self.next_tstep()
+        # calculate flattened coordinates (x, y)
         self.flattened = []
-        # extents = self.extents()
-        # scale = max(extents[0][1]-extents[0][0], extents[1][1] - extents[1][0], extents[2][1]-extents[2][0])
-        # self.scale = 1 / scale
+        # print(self.T)
         for point in self.points:
-            self.flattened.append(point.flatten(self.scale, self.distance))
+            self.flattened.append(point.flatten(self.scale, self.distance, self.Tr, self.Tt, self.dscale()))
 
-        #get coordinates to draw triangles and quads
+        # get coordinates to draw triangles and quads
         elements = []
         for element in self.elements:
             if type(element) is graphics.face.Line:
-                avgZ = -(self.points[element.a].z + self.points[element.b].z) / 2
+                avgZ = -(self.points[element.a].d(self.Tr, self.Tt) + self.points[element.b].d(self.Tr, self.Tt)) / 2
                 elements.append((self.flattened[element.a], self.flattened[element.b], element.color, avgZ))
             elif type(element) is graphics.face.Face3:
-                avgZ = -(self.points[element.a].z + self.points[element.b].z + self.points[element.c].z) / 3
+                avgZ = -(self.points[element.a].d(self.Tr, self.Tt) + self.points[element.b].d(self.Tr, self.Tt) + self.points[element.c].d(self.Tr, self.Tt)) / 3
                 elements.append((self.flattened[element.a], self.flattened[element.b], self.flattened[element.c], element.color, avgZ))
             elif type(element) is graphics.face.Face4:
-                avgZ = -(self.points[element.a].z + self.points[element.b].z + self.points[element.c].z + self.points[element.d].z) / 4
+                avgZ = -(self.points[element.a].d(self.Tr, self.Tt) + self.points[element.b].d(self.Tr, self.Tt) + self.points[element.c].d(self.Tr, self.Tt) + self.points[element.d].d(self.Tr, self.Tt)) / 4
                 elements.append((self.flattened[element.a], self.flattened[element.b], self.flattened[element.c], self.flattened[element.d], element.color, avgZ))
 
-        #sort triangles from furthest back to closest
+        # sort elements from furthest back to closest
         elements = sorted(elements,key=lambda x: x[-1])
 
-        #draw triangles and quads
+        # draw triangles and quads
         for element in elements:
             if len(element) == 4:
                 self.screen.createBeam(element[0:2], element[2])
