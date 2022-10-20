@@ -172,7 +172,7 @@ class Engine3D:
         self.render()
 
     def dscale(self):
-        scale = np.sin(self.tstep / self.num_steps * 2 * np.pi)
+        scale = np.sin((self.tstep / (self.num_steps + 1)) * 2 * np.pi)
         return scale
 
     def palette_range(self):
@@ -281,7 +281,8 @@ class Engine3D:
         self.Tt = np.zeros((3, 1), dtype=float)
 
         # initialize display
-        self.screen = graphics.screen.Screen(width, height, title, background)
+        self.status = '({0:' + str(len(str(num_steps))) + 'n}/{1:' + str(len(str(num_steps))) + 'n})'
+        self.screen = graphics.screen.Screen(width, height, title, background, self.status.format(0, num_steps))
         self.__prev = []
 
         # this is for editing the model
@@ -394,4 +395,5 @@ class Engine3D:
                 self.screen.createQuad(element[0:4], element[4])
 
         self.render_triad()
+        self.screen.label.config(text=self.status.format(self.tstep, self.num_steps))
 

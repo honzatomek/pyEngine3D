@@ -1,7 +1,7 @@
 import tkinter
 
 class Screen:
-    def __init__(self, width, height, title, background):
+    def __init__(self, width, height, title, background, status):
         # store size
         self.width = width
         self.height = height
@@ -12,11 +12,16 @@ class Screen:
         # flip_y y axis?
         self.flip_y = False
 
-        #initialize tkinter window for displaying graphics
+        # initialize tkinter window for displaying graphics
         self.window = tkinter.Tk()
         self.window.title(title)
         self.image = tkinter.Canvas(self.window, width=width, height=height, bg=background)
         self.image.pack()
+
+        # initialise status line
+        self.label = tkinter.Label(self.image, text=status)
+        self.label.place(relx=0.5, rely=0.95, anchor='center')
+        # self.label.pack()
 
     def createTriangle(self, points, color):
         a, b, c = points[0], points[1], points[2]
