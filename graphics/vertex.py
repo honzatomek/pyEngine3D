@@ -51,8 +51,12 @@ class Vertex:
         X = Tr @ np.array([self.x + ds * self.dx, self.y + ds * self.dy, self.z + ds * self.dz]).reshape((3, 1)) + Tt
 
         # calculate 2D coordinates from 3D point
-        projectedX = int(((X[0,0] * distance) / (X[2,0] + distance)) * scale)
-        projectedY = int(((X[1,0] * distance) / (X[2,0] + distance)) * scale)
+        if distance is None or distance == 0:
+            projectedX = int(X[0,0] * scale)
+            projectedY = int(X[1,0] * scale)
+        else:
+            projectedX = int(((X[0,0] * distance) / (X[2,0] + distance)) * scale)
+            projectedY = int(((X[1,0] * distance) / (X[2,0] + distance)) * scale)
         return (projectedX, projectedY)
 
     def move(self, axis, value):

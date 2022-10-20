@@ -266,12 +266,13 @@ class Engine3D:
         self.screen.window.bind('<Left>', self.__movedown)
         self.screen.window.bind('<Right>', self.__moveup)
 
-    def __init__(self, points, lines=None, triangles=None, quads=None, displacement=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white', num_steps=10):
+    def __init__(self, points, lines=None, triangles=None, quads=None, displacement=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white', num_steps=11, projection='perspective'):
         # object parameters
         self.distance = distance
         self.extents, self.offset = self.__extents(points)
         self.scale = 0.6 * min(height, width) / max(self.extents[1][0]-self.extents[0][0], self.extents[1][1]-self.extents[0][1], self.extents[1][2]-self.extents[0][2])
         self.p = np.array([[0., 0., 255.], [0., 255., 0.], [255., 255., 0.], [255., 0., 0.], [255., 0., 255.]], dtype=float)
+        self.projection = projection
 
         # transformation matrix
         # self.Tr = np.eye(3, dtype=float)
@@ -314,12 +315,8 @@ class Engine3D:
 
         # triad
         self.triad = []
-        if self.screen.flip_y:
-            for vector in [[1., 0., 0.], [0., -1., 0.], [0., 0., -1.]]:
-                self.triad.append(graphics.vertex.Vertex(vector))
-        else:
-            for vector in [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]:
-                self.triad.append(graphics.vertex.Vertex(vector))
+        for vector in [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]:
+            self.triad.append(graphics.vertex.Vertex(vector))
 
     def clear(self):
         # clear display
@@ -346,18 +343,30 @@ class Engine3D:
         x = 0.9 * self.screen.width
         y = 0.9 * self.screen.height
         s = 0.05 * min(self.screen.width, self.screen.height)
+
+        if self.projection == 'ortho':
+            distance = 0.
+        else:
+            distance = self.distance
+
         for vector, color in zip(self.triad, ['red', 'green', 'blue']):
-            v = vector.flatten(s, self.distance, self.Tr, self.Tt)
+            v = vector.flatten(s, distance, self.Tr, self.Tt)
             self.screen.createVector([[x, y], [x + v[0], y + v[1]]], color)
 
     def render(self):
         if self.deform:
             self.next_tstep()
+
+        if self.projection == 'ortho':
+            distance = 0.
+        else:
+            distance = self.distance
+
         # calculate flattened coordinates (x, y)
         self.flattened = []
         print(self.Tr)
         for point in self.points:
-            self.flattened.append(point.flatten(self.scale, self.distance, self.Tr, self.Tt, self.dscale()))
+            self.flattened.append(point.flatten(self.scale, distance, self.Tr, self.Tt, self.dscale()))
 
         # get coordinates to draw triangles and quads
         elements = []
