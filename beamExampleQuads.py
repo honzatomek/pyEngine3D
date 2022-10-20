@@ -64,10 +64,7 @@ def cube_beam(width, depth, height, m, n, o):
         n6 = i + (m+1)*j + (m+1)*(n+1)*(k+1) + 1
         n7 = i + (m+1)*(j+1) + (m+1)*(n+1)*(k+1) + 1
         n8 = i + (m+1)*(j+1) + (m+1)*(n+1)*(k+1)
-        lme.extend([[n1,n2],[n2,n3],[n3,n4],[n4,n1]]) # bottom face
-        lme.extend([[n5,n6],[n6,n7],[n7,n8],[n8,n5]]) # top face
-        lme.extend([[n1,n5],[n2,n6],[n3,n7],[n4,n8]]) # vertical edges
-        lme.extend([[n1,n6],[n2,n7],[n3,n8],[n4,n5],[n1,n7],[n1,n3],[n5,n7]]) # diagonals
+        lme.extend([[n1,n2,n3,n4],[n5,n6,n7,n8],[n1,n2,n6,n5],[n2,n3,n7,n6],[n3,n4,n8,n7],[n4,n1,n5,n8]])
 
   return coors, lme
 
@@ -77,7 +74,7 @@ z = 20.0
 nx = 10
 ny = 4
 nz = 4
-points, lines = cube_beam(x, y, z, nx, ny, nz)
+points, quads = cube_beam(x, y, z, nx, ny, nz)
 points = np.array(points, dtype=float)
 
 deform = np.zeros(points.shape, dtype=float)
@@ -88,7 +85,7 @@ points[:,0] -= x / 2
 points[:,1] -= y / 2
 points[:,2] -= z / 2
 
-test = graphics.engine.Engine3D(points.tolist(), displacement=deform.tolist(), lines=lines, title='Cube', distance=6, num_steps=11, projection='ortho')
+test = graphics.engine.Engine3D(points.tolist(), displacement=deform.tolist(), quads=quads, title='Cube', distance=6, num_steps=11, projection='ortho')
 
 def animation():
     test.clear()
