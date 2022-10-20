@@ -47,7 +47,7 @@ class Engine3D:
             self.__axis[2][0].z -= 40 / self.scale
             self.__axis[2][1].z += 40 / self.scale
 
-            self.__axis = [[point.flatten(self.scale, self.distance, self.Tt, self.Tt) for point in i] for i in self.__axis]
+            self.__axis = [[point.flatten(self.scale, self.distance, self.Tr, self.Tt) for point in i] for i in self.__axis]
             self.__axis = [[[i[0] + zeros[0], i[1] + zeros[1]] for i in j] for j in self.__axis]
             self.__axis = [self.screen.createLine(self.__axis[0], 'red'), self.screen.createLine(self.__axis[1], 'green'), self.screen.createLine(self.__axis[2], 'blue')]
 
@@ -310,6 +310,11 @@ class Engine3D:
         self.deform = False
         self.__deform = self.deform
 
+        # triad
+        self.triad = []
+        for vector in [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]:
+            self.triad.append(graphics.vertex.Vertex(vector))
+
     def clear(self):
         # clear display
         self.screen.clear()
@@ -330,6 +335,14 @@ class Engine3D:
         else:
           raise ValueError(f'invalid rotation axis {axis:s}')
         self.Tr = T @ self.Tr
+
+    def render_triad(self):
+        x = 0.9 * self.screen.width
+        y = 0.9 * self.screen.height
+        s = 0.05 * min(self.screen.width, self.screen.height)
+        for vector, color in zip(self.triad, ['red', 'green', 'blue']):
+            v = vector.flatten(s, self.distance, self.Tr, self.Tt)
+            self.screen.createVector([[x, y], [x + v[0], y + v[1]]], color)
 
     def render(self):
         if self.deform:
@@ -364,4 +377,6 @@ class Engine3D:
                 self.screen.createTriangle(element[0:3], element[3])
             elif len(element) == 6:
                 self.screen.createQuad(element[0:4], element[4])
+
+        self.render_triad()
 

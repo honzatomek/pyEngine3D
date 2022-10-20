@@ -2,6 +2,10 @@ import tkinter
 
 class Screen:
     def __init__(self, width, height, title, background):
+        # store size
+        self.width = width
+        self.height = height
+
         #calculate center of screen
         self.zeros = [int(width/2), int(height/2)]
 
@@ -33,6 +37,10 @@ class Screen:
     def createLine(self, points, color):
         a, b = points[0], points[1]
         return self.image.create_line(a[0], a[1], b[0], b[1], fill=color, arrow=tkinter.BOTH)
+
+    def createVector(self, points, color):
+        a, b = points[0], points[1]
+        return self.image.create_line(a[0], a[1], b[0], b[1], fill=color, arrow=tkinter.LAST)
 
     def clear(self):
         #clear display
