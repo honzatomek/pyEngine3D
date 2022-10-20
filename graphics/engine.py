@@ -274,7 +274,9 @@ class Engine3D:
         self.p = np.array([[0., 0., 255.], [0., 255., 0.], [255., 255., 0.], [255., 0., 0.], [255., 0., 255.]], dtype=float)
 
         # transformation matrix
-        self.Tr = np.eye(3, dtype=float)
+        # self.Tr = np.eye(3, dtype=float)
+        # self.rotate('x', np.pi)
+        self.Tr = np.array([[1,0,0],[0,-1,0],[0,0,-1]], dtype=float)
         self.Tt = np.zeros((3, 1), dtype=float)
 
         # initialize display
@@ -312,8 +314,12 @@ class Engine3D:
 
         # triad
         self.triad = []
-        for vector in [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]:
-            self.triad.append(graphics.vertex.Vertex(vector))
+        if self.screen.flip_y:
+            for vector in [[1., 0., 0.], [0., -1., 0.], [0., 0., -1.]]:
+                self.triad.append(graphics.vertex.Vertex(vector))
+        else:
+            for vector in [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]:
+                self.triad.append(graphics.vertex.Vertex(vector))
 
     def clear(self):
         # clear display
@@ -349,7 +355,7 @@ class Engine3D:
             self.next_tstep()
         # calculate flattened coordinates (x, y)
         self.flattened = []
-        # print(self.T)
+        print(self.Tr)
         for point in self.points:
             self.flattened.append(point.flatten(self.scale, self.distance, self.Tr, self.Tt, self.dscale()))
 

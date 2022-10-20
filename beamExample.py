@@ -88,7 +88,7 @@ points[:,0] -= x / 2
 points[:,1] -= y / 2
 points[:,2] -= z / 2
 
-test = graphics.engine.Engine3D(points.tolist(), displacement=deform.tolist(), lines=lines, title='Cube', distance=100, num_steps=11)
+test = graphics.engine.Engine3D(points.tolist(), displacement=deform.tolist(), lines=lines, title='Cube', distance=6, num_steps=11, projection='ortho')
 
 def animation():
     test.clear()
