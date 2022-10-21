@@ -5,37 +5,6 @@
 import graphics.engine
 import numpy as np
 
-def cube_hexa(width, depth, height, m, n, o):
-  dx = width / m
-  dy = depth / n
-  dz = height / o
-
-  # nodes and coors
-  coors = []
-  nodes = []
-  for k in range(o+1):
-    for j in range(n+1):
-      for i in range(m+1):
-        nodes.append(i + (m+1)*j + (m+1)*(n+1)*k)
-        coors.append([i*dx, j*dy, k*dz])
-
-  # connectivity hexa
-  lme = []
-  for k in range(o):
-    for j in range(n):
-      for i in range(m):
-        n1 = i + (m+1)*j + (m+1)*(n+1)*k
-        n2 = i + (m+1)*j + (m+1)*(n+1)*k + 1
-        n3 = i + (m+1)*(j+1) + (m+1)*(n+1)*k + 1
-        n4 = i + (m+1)*(j+1) + (m+1)*(n+1)*k
-        n5 = i + (m+1)*j + (m+1)*(n+1)*(k+1)
-        n6 = i + (m+1)*j + (m+1)*(n+1)*(k+1) + 1
-        n7 = i + (m+1)*(j+1) + (m+1)*(n+1)*(k+1) + 1
-        n8 = i + (m+1)*(j+1) + (m+1)*(n+1)*(k+1)
-        lme.append([n1, n2, n3, n4, n5, n6, n7, n8])
-
-  return coors, lme
-
 
 def cube_beam(width, depth, height, m, n, o):
   dx = width / m
@@ -86,10 +55,6 @@ for i in range(10):
     deform[i][j,1] = (y / 2) * np.sin(points[j,0] / x * np.pi / 2 * (i + 1))
 
 deform = np.array(deform, dtype=float)
-
-# points[:,0] -= x / 2
-# points[:,1] -= y / 2
-# points[:,2] -= z / 2
 
 test = graphics.engine.Engine3D(points, lines, displacement=deform, title='Cube', distance=6, num_steps=11, projection='ortho')
 

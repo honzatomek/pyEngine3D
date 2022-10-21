@@ -21,8 +21,10 @@ class Engine3D:
 
     def __drag(self, event):
         if self.__prev:
-            self.rotate('y', (event.x - self.__prev[0]) / 20)
-            self.rotate('x', (event.y - self.__prev[1]) / 20)
+            # self.rotate('y', (event.x - self.__prev[0]) / 20)
+            # self.rotate('x', (event.y - self.__prev[1]) / 20)
+            self.rotate('y', (self.__prev[0] - event.x) / 20)
+            self.rotate('x', (self.__prev[1] - event.y) / 20)
             self.clear()
             deform = self.deform
             self.deform = False
@@ -43,7 +45,8 @@ class Engine3D:
         found = [e for e in possibilities if e in self.flattened]
         if found != []:
             self.__moveaxis = None
-            self.__selected = self.flattened.index(found[0])
+            # self.__selected = self.flattened.index(found[0])
+            self.__selected = np.where(self.flattened==found[0])[0]
 
             i = self.points[self.__selected]
             self.__axis = [[copy.deepcopy(i) for a in range(2)] for b in range(3)]
@@ -241,6 +244,36 @@ class Engine3D:
     def initial_scale(self, width, height):
         return 0.6 * min(width, height) / max(self.extents[1,0]-self.extents[0,0], self.extents[1,1]-self.extents[0,1], self.extents[1,2]-self.extents[0,2])
 
+    def __rotate_xp(self, event):
+        self.rotate('x', 0.08726646259971647)
+        self.clear()
+        self.render()
+
+    def __rotate_xn(self, event):
+        self.rotate('x', -0.08726646259971647)
+        self.clear()
+        self.render()
+
+    def __rotate_yp(self, event):
+        self.rotate('y', 0.08726646259971647)
+        self.clear()
+        self.render()
+
+    def __rotate_yn(self, event):
+        self.rotate('y', -0.08726646259971647)
+        self.clear()
+        self.render()
+
+    def __rotate_zp(self, event):
+        self.rotate('z', 0.08726646259971647)
+        self.clear()
+        self.render()
+
+    def __rotate_zn(self, event):
+        self.rotate('z', -0.08726646259971647)
+        self.clear()
+        self.render()
+
     def bind_keys(self):
         self.__pressed = 0
 
@@ -260,6 +293,12 @@ class Engine3D:
         self.screen.window.bind('q', sys.exit)
         self.screen.window.bind('n', self.__next_tstep)
         self.screen.window.bind('N', self.__prev_tstep)
+        self.screen.window.bind('1', self.__rotate_xp)
+        self.screen.window.bind('!', self.__rotate_xn)
+        self.screen.window.bind('2', self.__rotate_yp)
+        self.screen.window.bind('@', self.__rotate_yn)
+        self.screen.window.bind('3', self.__rotate_zp)
+        self.screen.window.bind('#', self.__rotate_zn)
         self.screen.window.bind('<KeyPress>', self.__save_deform)
         self.screen.window.bind('<KeyRelease>', self.__restore_deform)
 
@@ -384,7 +423,7 @@ class Engine3D:
 
         # draw triangles and quads
         for i in range(Zorder.shape[0]):
-            self.screen.createElement(self.flattened[self.elements[Zorder[i]].v].reshape(2,2), 'gray')
+            self.screen.createElement(self.flattened[self.elements[Zorder[i]].v].reshape(self.elements[Zorder[i]].v.shape[0],2), 'gray')
 
         self.render_triad()
         self.screen.label.config(text=self.status.format(self.tstep, self.num_steps))
