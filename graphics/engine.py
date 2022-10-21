@@ -6,6 +6,14 @@ import sys
 
 import numpy as np
 
+
+PALETTE = np.array([[  0.,   0., 255.],
+                    [  0., 255.,   0.],
+                    [255., 255.,   0.],
+                    [255.,   0.,   0.],
+                    [255.,   0., 255.]], dtype=float)
+
+
 class Engine3D:
     def __resetDrag(self, event):
         self.__prev = []
@@ -135,12 +143,10 @@ class Engine3D:
     def __deform(self, event):
         self.deform = not self.deform
 
-    def __extents(self, points):
-        points = np.array(points)
-        minX, maxX = np.min(points[:,0]), np.max(points[:,0])
-        minY, maxY = np.min(points[:,1]), np.max(points[:,1])
-        minZ, maxZ = np.min(points[:,2]), np.max(points[:,2])
-        return ((minX, minY, minZ), (maxX, maxY, maxZ)), ((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
+    def get_model_extents(self, points):
+        Xmin = points.min(axis=0)
+        Xmax = points.max(axis=0)
+        return np.vstack((Xmin, Xmax, 0.5 * (Xmin + Xmax)))
 
     def next_tstep(self):
         self.tstep += 1
@@ -171,35 +177,32 @@ class Engine3D:
         self.clear()
         self.render()
 
-    def dscale(self):
+    def displacement_scale(self):
         scale = np.sin((self.tstep / (self.num_steps + 1)) * 2 * np.pi)
         return scale
 
     def palette_range(self):
-        dmin = self.point[0].square(self.dscale)
+        dmin = self.point[0].rms(self.dscale)
         dmax = dmin
         for point in self.points:
-            dmin = dmin if point.square(self.dscale) < dmin else dmin
-            dmax = dmax if point.square(self.dscale) > dmax else dmax
+            dmin = dmin if point.rms(self.dscale) < dmin else dmin
+            dmax = dmax if point.rms(self.dscale) > dmax else dmax
         return (dmin, dmax)
 
-    def palette(self, fraction):
-        range = len(self.p)
+    def color(self, fraction):
+        range = len(self.palette)
         i = int((range - 1) * fraction)
-        col1 = self.p[i]
-        col2 = self.p[i+1]
+        col1 = self.palette[i]
+        col2 = self.palette[i+1]
         f = (fraction - i * range) * range
 
         return (int((col2[0] - col1[0]) * f), int((col2[1] - col1[1]) * f), int((col2[2] - col1[2]) * f))
 
     def writePoints(self, points, displacement):
-        self.points = []
-        if displacement is not None:
-            for point, defor in zip(points, displacement):
-                self.points.append(graphics.vertex.Vertex(point, displacement=defor))
-        else:
-            for point in points:
-                self.points.append(graphics.vertex.Vertex(point))
+        self.points = np.array([graphics.vertex.Vertex(points[i,:], displacement[:,i,:]) for i in range(points.shape[0])])
+
+    def writeElements(self, elements):
+        self.elements = np.array([graphics.face.Element(elements[i,:]) for i in range(elements.shape[0])])
 
     def writeLines(self, lines):
         # self.elements = []
@@ -235,6 +238,9 @@ class Engine3D:
                 self.deform = self.__deform
             self.__pressed = 0
 
+    def initial_scale(self, width, height):
+        return 0.6 * min(width, height) / max(self.extents[1,0]-self.extents[0,0], self.extents[1,1]-self.extents[0,1], self.extents[1,2]-self.extents[0,2])
+
     def bind_keys(self):
         self.__pressed = 0
 
@@ -266,19 +272,18 @@ class Engine3D:
         self.screen.window.bind('<Left>', self.__movedown)
         self.screen.window.bind('<Right>', self.__moveup)
 
-    def __init__(self, points, lines=None, triangles=None, quads=None, displacement=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white', num_steps=11, projection='perspective'):
+    def __init__(self, points, elements, displacement=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white', num_steps=11, projection='perspective'):
         # object parameters
         self.distance = distance
-        self.extents, self.offset = self.__extents(points)
-        self.scale = 0.6 * min(height, width) / max(self.extents[1][0]-self.extents[0][0], self.extents[1][1]-self.extents[0][1], self.extents[1][2]-self.extents[0][2])
-        self.p = np.array([[0., 0., 255.], [0., 255., 0.], [255., 255., 0.], [255., 0., 0.], [255., 0., 255.]], dtype=float)
+        self.extents = self.get_model_extents(points)
+        self.scale = self.initial_scale(width, height)
+        self.palette = PALETTE
         self.projection = projection
 
         # transformation matrix
-        # self.Tr = np.eye(3, dtype=float)
-        # self.rotate('x', np.pi)
-        self.Tr = np.array([[1,0,0],[0,-1,0],[0,0,-1]], dtype=float)
-        self.Tt = np.zeros((3, 1), dtype=float)
+        self.Tr = np.array([[1,0,0],[0,-1,0],[0,0,-1]], dtype=float) # x left, y up
+        # move model center to 0
+        self.Tt =  -1 * self.extents[2].flatten().reshape((3,1))
 
         # initialize display
         self.status = '({0:' + str(len(str(num_steps))) + 'n}/{1:' + str(len(str(num_steps))) + 'n})'
@@ -297,19 +302,20 @@ class Engine3D:
         self.flattened = []
 
         # store faces
-        self.elements = []
-        if lines is not None:
-            self.writeLines(lines)
-        if triangles is not None:
-            self.writeTriangles(triangles)
-        if quads is not None:
-            self.writeQuads(quads)
+        # self.elements = []
+        # if lines is not None:
+        #     self.writeLines(lines)
+        # if triangles is not None:
+        #     self.writeTriangles(triangles)
+        # if quads is not None:
+        #     self.writeQuads(quads)
+        self.writeElements(elements)
 
         # displacement
         self.num_steps = num_steps
         self.tstep = 0
         self.dt = 1
-        # self.dscale = 1.
+        self.dscale = 1.
 
         self.deform = False
         self.__deform = self.deform
@@ -341,9 +347,8 @@ class Engine3D:
         self.Tr = T @ self.Tr
 
     def render_triad(self):
-        x = 0.9 * self.screen.width
-        y = 0.9 * self.screen.height
-        s = 0.05 * min(self.screen.width, self.screen.height)
+        X = 0.9 * np.array([self.screen.width, self.screen.height], dtype=float).reshape(2,1)
+        size = int(0.05 * min(self.screen.width, self.screen.height))
 
         if self.projection == 'ortho':
             distance = 0.
@@ -351,8 +356,9 @@ class Engine3D:
             distance = self.distance
 
         for vector, color in zip(self.triad, ['red', 'green', 'blue']):
-            v = vector.flatten(s, distance, self.Tr, self.Tt)
-            self.screen.createVector([[x, y], [x + v[0], y + v[1]]], color)
+            v = vector.flatten(size, distance, self.Tr, np.array([0, 0, 0], dtype=float).reshape(3,1))
+            v = np.hstack((X, X + v))
+            self.screen.createVector(v, color)
 
     def render(self):
         if self.deform:
@@ -363,36 +369,22 @@ class Engine3D:
         else:
             distance = self.distance
 
+        dscale = self.displacement_scale()
+
         # calculate flattened coordinates (x, y)
-        self.flattened = []
-        print(self.Tr)
-        for point in self.points:
-            self.flattened.append(point.flatten(self.scale, distance, self.Tr, self.Tt, self.dscale()))
+        self.flattened = np.array([self.points[i].flatten(self.scale, distance, self.Tr, self.Tt, dscale) for i in range(self.points.shape[0])], dtype=float)
 
         # get coordinates to draw triangles and quads
-        elements = []
-        for element in self.elements:
-            if type(element) is graphics.face.Line:
-                avgZ = -(self.points[element.a].d(self.Tr, self.Tt) + self.points[element.b].d(self.Tr, self.Tt)) / 2
-                elements.append((self.flattened[element.a], self.flattened[element.b], element.color, avgZ))
-            elif type(element) is graphics.face.Face3:
-                avgZ = -(self.points[element.a].d(self.Tr, self.Tt) + self.points[element.b].d(self.Tr, self.Tt) + self.points[element.c].d(self.Tr, self.Tt)) / 3
-                elements.append((self.flattened[element.a], self.flattened[element.b], self.flattened[element.c], element.color, avgZ))
-            elif type(element) is graphics.face.Face4:
-                avgZ = -(self.points[element.a].d(self.Tr, self.Tt) + self.points[element.b].d(self.Tr, self.Tt) + self.points[element.c].d(self.Tr, self.Tt) + self.points[element.d].d(self.Tr, self.Tt)) / 4
-                elements.append((self.flattened[element.a], self.flattened[element.b], self.flattened[element.c], self.flattened[element.d], element.color, avgZ))
+        avgZ = np.zeros(self.elements.shape[0], dtype=float)
+        for i in range(self.elements.shape[0]):
+            avgZ[i] = np.mean([self.points[vertex].dist(self.Tr, self.Tt) for vertex in self.elements[i].v])
 
-        # sort elements from furthest back to closest
-        elements = sorted(elements,key=lambda x: x[-1])
+        # get element order from front to back
+        Zorder = avgZ.argsort()
 
         # draw triangles and quads
-        for element in elements:
-            if len(element) == 4:
-                self.screen.createBeam(element[0:2], element[2])
-            elif len(element) == 5:
-                self.screen.createTriangle(element[0:3], element[3])
-            elif len(element) == 6:
-                self.screen.createQuad(element[0:4], element[4])
+        for i in range(Zorder.shape[0]):
+            self.screen.createElement(self.flattened[self.elements[Zorder[i]].v].reshape(2,2), 'gray')
 
         self.render_triad()
         self.screen.label.config(text=self.status.format(self.tstep, self.num_steps))

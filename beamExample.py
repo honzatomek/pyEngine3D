@@ -69,7 +69,7 @@ def cube_beam(width, depth, height, m, n, o):
         lme.extend([[n1,n5],[n2,n6],[n3,n7],[n4,n8]]) # vertical edges
         lme.extend([[n1,n6],[n2,n7],[n3,n8],[n4,n5],[n1,n7],[n1,n3],[n5,n7]]) # diagonals
 
-  return coors, lme
+  return np.array(coors, dtype=float), np.array(lme, dtype='int32')
 
 x = 100.0
 y = 20.0
@@ -78,17 +78,20 @@ nx = 10
 ny = 4
 nz = 4
 points, lines = cube_beam(x, y, z, nx, ny, nz)
-points = np.array(points, dtype=float)
 
-deform = np.zeros(points.shape, dtype=float)
-for i in range(points.shape[0]):
-  deform[i,1] = (y / 2) * np.sin(points[i,0] / x * np.pi / 2)
+deform = []
+for i in range(10):
+  deform.append(np.zeros(points.shape, dtype=float))
+  for j in range(points.shape[0]):
+    deform[i][j,1] = (y / 2) * np.sin(points[j,0] / x * np.pi / 2 * (i + 1))
 
-points[:,0] -= x / 2
-points[:,1] -= y / 2
-points[:,2] -= z / 2
+deform = np.array(deform, dtype=float)
 
-test = graphics.engine.Engine3D(points.tolist(), displacement=deform.tolist(), lines=lines, title='Cube', distance=6, num_steps=11, projection='ortho')
+# points[:,0] -= x / 2
+# points[:,1] -= y / 2
+# points[:,2] -= z / 2
+
+test = graphics.engine.Engine3D(points, lines, displacement=deform, title='Cube', distance=6, num_steps=11, projection='ortho')
 
 def animation():
     test.clear()
