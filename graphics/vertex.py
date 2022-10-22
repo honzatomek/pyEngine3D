@@ -63,7 +63,7 @@ class Vertex:
             ds    - displacement scale (float)
             index - displacement load case index
         """
-        return (self.dX[:,[index]].T @ self.dX[:,[index]]) ** 0.5
+        return ((self.dX[:,[index]].T @ self.dX[:,[index]]) ** 0.5 * abs(ds)).flatten()[0]
 
     def flatten(self, scale, distance, Tr, Tt, ds=1., index=0):
         """

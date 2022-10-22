@@ -13,6 +13,12 @@ PALETTE = np.array([[  0.,   0., 255.],
                     [255.,   0.,   0.],
                     [255.,   0., 255.]], dtype=float)
 
+def _from_rgb(rgb):
+    """
+    translates an rgb tuple of int to a tkinter friendly color code
+    """
+    return "#%02x%02x%02x" % (int(rgb[0]), int(rgb[1]), int(rgb[2]))
+
 
 class Engine3D:
     def __resetDrag(self, event):
@@ -185,21 +191,24 @@ class Engine3D:
         return scale
 
     def palette_range(self):
-        dmin = self.point[0].rms(self.dscale)
+        dmin = self.points[0].rms(self.dscale)
         dmax = dmin
-        for point in self.points:
-            dmin = dmin if point.rms(self.dscale) < dmin else dmin
-            dmax = dmax if point.rms(self.dscale) > dmax else dmax
-        return (dmin, dmax)
+        for i in range(self.points.shape[0]):
+            val = self.points[i].rms(1.)
+            dmin = val if val < dmin else dmin
+            dmax = val if val > dmax else dmax
+        return np.array([dmin, dmax], dtype=float)
 
     def color(self, fraction):
         range = len(self.palette)
-        i = int((range - 1) * fraction)
+        i = min(int((range - 1) * fraction), range - 2)
         col1 = self.palette[i]
         col2 = self.palette[i+1]
-        f = (fraction - i * range) * range
+        f = fraction / (range - 1)
 
-        return (int((col2[0] - col1[0]) * f), int((col2[1] - col1[1]) * f), int((col2[2] - col1[2]) * f))
+        col = (int(col1[0] + (col2[0] - col1[0]) * f), int(col1[1] + (col2[1] - col1[1]) * f), int(col1[2] + (col2[2] - col1[2]) * f))
+
+        return f'#{col[0]:02x}{col[1]:02x}{col[2]:02x}'
 
     def writePoints(self, points, displacement):
         self.points = np.array([graphics.vertex.Vertex(points[i,:], displacement[:,i,:]) for i in range(points.shape[0])])
@@ -355,6 +364,7 @@ class Engine3D:
         self.tstep = 0
         self.dt = 1
         self.dscale = 1.
+        self.prange = self.palette_range()
 
         self.deform = False
         self.__deform = self.deform
@@ -408,22 +418,24 @@ class Engine3D:
         else:
             distance = self.distance
 
-        dscale = self.displacement_scale()
-
+        self.dscale = self.displacement_scale()
         # calculate flattened coordinates (x, y)
-        self.flattened = np.array([self.points[i].flatten(self.scale, distance, self.Tr, self.Tt, dscale) for i in range(self.points.shape[0])], dtype=float)
+        self.flattened = np.array([self.points[i].flatten(self.scale, distance, self.Tr, self.Tt, self.dscale) for i in range(self.points.shape[0])], dtype=float)
 
         # get coordinates to draw triangles and quads
         avgZ = np.zeros(self.elements.shape[0], dtype=float)
+        color = np.zeros(self.elements.shape[0], dtype=float)
         for i in range(self.elements.shape[0]):
             avgZ[i] = np.mean([self.points[vertex].dist(self.Tr, self.Tt) for vertex in self.elements[i].v])
+            color[i] = self.prange[0] + (np.mean([self.points[vertex].rms(self.dscale) for vertex in self.elements[i].v]) - self.prange[0]) / self.prange[1]
 
         # get element order from front to back
         Zorder = avgZ.argsort()
 
         # draw triangles and quads
         for i in range(Zorder.shape[0]):
-            self.screen.createElement(self.flattened[self.elements[Zorder[i]].v].reshape(self.elements[Zorder[i]].v.shape[0],2), 'gray')
+            # print(self.color(color[Zorder[i]]))
+            self.screen.createElement(self.flattened[self.elements[Zorder[i]].v].reshape(self.elements[Zorder[i]].v.shape[0],2), self.color(color[Zorder[i]]))
 
         self.render_triad()
         self.screen.label.config(text=self.status.format(self.tstep, self.num_steps))
