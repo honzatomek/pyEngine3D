@@ -28,6 +28,8 @@ class Screen:
         """
         # create coordinates starting in center of screen
         coors = (np.array(points, dtype='int32') + self.zeros).flatten().tolist()
+        if type(color) in (np.ndarray, tuple, list):
+            color = f'#{color[0]:02x}{color[1]:02x}{color[2]:02x}'
         # draw element on screen
         if len(points) > 2:
             self.image.create_polygon(*coors, fill=color, outline="black")

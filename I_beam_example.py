@@ -117,14 +117,14 @@ if __name__ == '__main__':
     start = np.array([0,0,0], dtype=float)
     end = np.array([3000,0,0], dtype=float)
     xaxis = np.array([1,0,0], dtype=float)
-    zaxis = np.array([0,0,1], dtype=float)
-    points, elements = I_beam(start, end, zaxis, h=300., b=150., nh=2, nb=2, nl=25)
+    zaxis = np.array([0,1,0], dtype=float)
+    points, elements = I_beam(start, end, zaxis, h=500., b=300., nh=4, nb=2, nl=25)
 
     deform = []
     for i in range(1):
         deform.append(np.zeros(points.shape, dtype=float))
         for j in range(points.shape[0]):
-          deform[i][j,2] = (300. / 2) * np.sin(points[j,0] / 1000. * np.pi / 2 * (i + 1))
+          deform[i][j,1] = (300. / 2.) * np.sin(points[j,0] / 1500. * np.pi / 2. * (i + 1.))
 
     deform = np.array(deform, dtype=float)
 

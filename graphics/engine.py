@@ -13,6 +13,11 @@ PALETTE = np.array([[  0.,   0., 255.],
                     [255.,   0.,   0.],
                     [255.,   0., 255.]], dtype=float)
 
+# PALETTE = np.array([[   0,   0, 255],
+#                     [ 255, 255, 255],
+#                     [ 255,   0,   0]], dtype='int32')
+
+
 def _from_rgb(rgb):
     """
     translates an rgb tuple of int to a tkinter friendly color code
@@ -29,8 +34,8 @@ class Engine3D:
         if self.__prev:
             # self.rotate('y', (event.x - self.__prev[0]) / 20)
             # self.rotate('x', (event.y - self.__prev[1]) / 20)
-            self.rotate('y', (self.__prev[0] - event.x) / 20)
-            self.rotate('x', (self.__prev[1] - event.y) / 20)
+            self.rotate_view('y', (self.__prev[0] - event.x) / 20)
+            self.rotate_view('x', (self.__prev[1] - event.y) / 20)
             self.clear()
             deform = self.deform
             self.deform = False
@@ -96,7 +101,8 @@ class Engine3D:
             self.deform = deform
 
     def __zoomin(self, event):
-        self.scale += 2.5
+        # self.scale += 2.5
+        self.scale += self.scale_step
         self.clear()
         deform = self.deform
         self.deform = False
@@ -104,7 +110,8 @@ class Engine3D:
         self.deform = deform
 
     def __zoomout(self, event):
-        self.scale -= 2.5
+        # self.scale -= 2.5
+        self.scale -= self.scale_step
         self.clear()
         deform = self.deform
         self.deform = False
@@ -191,24 +198,36 @@ class Engine3D:
         return scale
 
     def palette_range(self):
-        dmin = self.points[0].rms(self.dscale)
+        dmin = np.mean([self.points[vertex].rms(1.) for vertex in self.elements[0].v])
         dmax = dmin
-        for i in range(self.points.shape[0]):
-            val = self.points[i].rms(1.)
-            dmin = val if val < dmin else dmin
-            dmax = val if val > dmax else dmax
+        for i in range(self.elements.shape[0]):
+            valmax = np.mean([self.points[vertex].rms(1.) for vertex in self.elements[i].v])
+            valmin = np.mean([self.points[vertex].rms(0.) for vertex in self.elements[i].v])
+            dmax = max(dmax, valmin, valmax)
+            dmin = min(dmax, valmin, valmax)
+            # dmin = val if val < dmin else dmin
+            # dmax = val if val > dmax else dmax
+        # for i in range(self.points.shape[0]):
+        #     val = self.points[i].rms(1.)
+        #     dmin = val if val < dmin else dmin
+        #     dmax = val if val > dmax else dmax
         return np.array([dmin, dmax], dtype=float)
 
     def color(self, fraction):
-        range = len(self.palette)
-        i = min(int((range - 1) * fraction), range - 2)
+        n = len(self.palette)
+        if fraction >= 1.:
+            i = n - 2
+        else:
+            i = int((n - 1) * fraction)
         col1 = self.palette[i]
         col2 = self.palette[i+1]
-        f = fraction / (range - 1)
+        f = (fraction - i / (n - 1)) * (n - 1)
 
         col = (int(col1[0] + (col2[0] - col1[0]) * f), int(col1[1] + (col2[1] - col1[1]) * f), int(col1[2] + (col2[2] - col1[2]) * f))
+        # print(f'{col} - #{col[0]:02x}{col[1]:02x}{col[2]:02x}')
 
-        return f'#{col[0]:02x}{col[1]:02x}{col[2]:02x}'
+        # return f'#{col[0]:02x}{col[1]:02x}{col[2]:02x}'
+        return col
 
     def writePoints(self, points, displacement):
         self.points = np.array([graphics.vertex.Vertex(points[i,:], displacement[:,i,:]) for i in range(points.shape[0])])
@@ -254,32 +273,32 @@ class Engine3D:
         return 0.6 * min(width, height) / max(self.extents[1,0]-self.extents[0,0], self.extents[1,1]-self.extents[0,1], self.extents[1,2]-self.extents[0,2])
 
     def __rotate_xp(self, event):
-        self.rotate('x', 0.08726646259971647)
+        self.rotate_model('x', 0.08726646259971647)
         self.clear()
         self.render()
 
     def __rotate_xn(self, event):
-        self.rotate('x', -0.08726646259971647)
+        self.rotate_model('x', -0.08726646259971647)
         self.clear()
         self.render()
 
     def __rotate_yp(self, event):
-        self.rotate('y', 0.08726646259971647)
+        self.rotate_model('y', 0.08726646259971647)
         self.clear()
         self.render()
 
     def __rotate_yn(self, event):
-        self.rotate('y', -0.08726646259971647)
+        self.rotate_model('y', -0.08726646259971647)
         self.clear()
         self.render()
 
     def __rotate_zp(self, event):
-        self.rotate('z', 0.08726646259971647)
+        self.rotate_model('z', 0.08726646259971647)
         self.clear()
         self.render()
 
     def __rotate_zn(self, event):
-        self.rotate('z', -0.08726646259971647)
+        self.rotate_model('z', -0.08726646259971647)
         self.clear()
         self.render()
 
@@ -325,14 +344,15 @@ class Engine3D:
         self.distance = distance
         self.extents = self.get_model_extents(points)
         self.scale = self.initial_scale(width, height)
+        self.scale_step = 0.025 * self.scale
         self.palette = PALETTE
         self.projection = projection
 
         # transformation matrix
         # self.Tr = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype=float) # x right, y down
         # self.rotate('x', np.pi/2)
-        # self.Tr = np.array([[1,0,0],[0,-1,0],[0,0,-1]], dtype=float) # x right, y up
-        self.Tr = np.array([[1,0,0],[0,0,-1],[0,1,0]], dtype=float) # x right, z up
+        self.Tr = np.array([[1,0,0],[0,-1,0],[0,0,-1]], dtype=float) # x right, y up
+        # self.Tr = np.array([[1,0,0],[0,0,-1],[0,1,0]], dtype=float) # x right, z up
         # move model center to 0
         self.Tt =  -1 * self.extents[2].flatten().reshape((3,1))
 
@@ -381,7 +401,7 @@ class Engine3D:
         # clear display
         self.screen.clear()
 
-    def rotate(self, axis, angle):
+    def rotate_view(self, axis, angle):
         if axis == 'x':
             T = np.array([[1,             0,              0],
                           [0, np.cos(angle), -np.sin(angle)],
@@ -397,6 +417,23 @@ class Engine3D:
         else:
           raise ValueError(f'invalid rotation axis {axis:s}')
         self.Tr = T @ self.Tr
+
+    def rotate_model(self, axis, angle):
+        if axis == 'x':
+            T = np.array([[1,             0,              0],
+                          [0, np.cos(angle), -np.sin(angle)],
+                          [0, np.sin(angle),  np.cos(angle)]], dtype=float)
+        elif axis == 'y':
+            T = np.array([[np.cos(angle), 0, -np.sin(angle)],
+                          [0,             1,              0],
+                          [np.sin(angle), 0,  np.cos(angle)]], dtype=float)
+        elif axis == 'z':
+            T = np.array([[np.cos(angle), -np.sin(angle), 0],
+                          [np.sin(angle),  np.cos(angle), 0],
+                          [            0,              0, 1]], dtype=float)
+        else:
+          raise ValueError(f'invalid rotation axis {axis:s}')
+        self.Tr = self.Tr @ T
 
     def render_triad(self):
         X = 0.9 * np.array([self.screen.width, self.screen.height], dtype=float).reshape(2,1)
@@ -437,7 +474,6 @@ class Engine3D:
 
         # draw triangles and quads
         for i in range(Zorder.shape[0]):
-            # print(self.color(color[Zorder[i]]))
             self.screen.createElement(self.flattened[self.elements[Zorder[i]].v].reshape(self.elements[Zorder[i]].v.shape[0],2), self.color(color[Zorder[i]]))
 
         self.render_triad()
