@@ -69,14 +69,19 @@ class Vertex:
         """
         returns point projection to screen
 
-        Xloc  = T @ (Xg + ds * dXg)
+        Xloc  = Tr @ (Xg + ds * dXg + Tt)
 
         Ortho:
-            Xproj = Xloc * scale
+            Xproj = Tp @ Xloc
+            Tp    = [[scale,     0,    0],
+                     [    0, scale,    0]]
             projectedX, projectedY = Xproj[0], Xproj[1]
 
         Perspective:
             Xproj = (Xloc * distance) / (Xloc[2] + distance) * scale
+            Xproj = Tp @ Xloc * distance / (Xloc[2] + distance)
+            Tp    = [[scale,     0,    0],
+                     [    0, scale,    0]]
             projectedX, projectedY = Xproj[0], Xproj[1]
 
         In:
@@ -86,8 +91,15 @@ class Vertex:
             Tt       - 3x1 translation matrix
             ds       - displacement scale (float)
         """
+        # Tp = np.array([[scale, 0., 0.],[0., scale, 0.]], dtype=float)
+
         # calculate rotated 3D coordinates
         X = Tr @ (self.X + ds * self.dX[:,[index]] + Tt)
+
+        # if distance is None or distance == 0:
+        #     perspective = 1.
+        # else:
+        #     perspective = distance / (X[2,0] + distance)
 
         # calculate 2D coordinates from 3D point
         if distance is None or distance == 0:
@@ -95,6 +107,7 @@ class Vertex:
         else:
             pX = ((X[:2,:] * distance) / (X[2,0] + distance) * scale).astype('int32')
         return pX
+        # return (Tp @ X * distance).astype('int32')
 
     def move(self, axis, value):
         if axis == 'x':

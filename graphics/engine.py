@@ -270,7 +270,7 @@ class Engine3D:
             self.__pressed = 0
 
     def initial_scale(self, width, height):
-        return 0.6 * min(width, height) / max(self.extents[1,0]-self.extents[0,0], self.extents[1,1]-self.extents[0,1], self.extents[1,2]-self.extents[0,2])
+        return 0.8 * min(width, height) / max(self.extents[1,0]-self.extents[0,0], self.extents[1,1]-self.extents[0,1], self.extents[1,2]-self.extents[0,2])
 
     def __rotate_xp(self, event):
         self.rotate_model('x', 0.08726646259971647)
