@@ -329,7 +329,10 @@ class Engine3D:
         self.projection = projection
 
         # transformation matrix
-        self.Tr = np.array([[1,0,0],[0,-1,0],[0,0,-1]], dtype=float) # x left, y up
+        # self.Tr = np.array([[1,0,0],[0,1,0],[0,0,1]], dtype=float) # x right, y down
+        # self.rotate('x', np.pi/2)
+        # self.Tr = np.array([[1,0,0],[0,-1,0],[0,0,-1]], dtype=float) # x right, y up
+        self.Tr = np.array([[1,0,0],[0,0,-1],[0,1,0]], dtype=float) # x right, z up
         # move model center to 0
         self.Tt =  -1 * self.extents[2].flatten().reshape((3,1))
 
