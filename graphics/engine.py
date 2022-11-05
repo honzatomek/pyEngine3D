@@ -200,7 +200,7 @@ class Engine3D:
     def palette_range(self):
         dmin = np.mean([self.points[vertex].rms(1.) for vertex in self.elements[0].v])
         dmax = dmin
-        for i in range(self.elements.shape[0]):
+        for i in range(len(self.elements)):
             valmax = np.mean([self.points[vertex].rms(1.) for vertex in self.elements[i].v])
             valmin = np.mean([self.points[vertex].rms(0.) for vertex in self.elements[i].v])
             dmax = max(dmax, valmin, valmax)
@@ -233,7 +233,7 @@ class Engine3D:
         self.points = np.array([graphics.vertex.Vertex(points[i,:], displacement[:,i,:]) for i in range(points.shape[0])])
 
     def writeElements(self, elements):
-        self.elements = np.array([graphics.face.Element(elements[i,:]) for i in range(elements.shape[0])])
+        self.elements = np.array([graphics.face.Element(element) for element in elements])
 
     def writeLines(self, lines):
         # self.elements = []
@@ -463,9 +463,9 @@ class Engine3D:
         self.flattened = np.array([self.points[i].flatten(self.scale, distance, self.Tr, self.Tt, self.dscale) for i in range(self.points.shape[0])], dtype=float)
 
         # get coordinates to draw triangles and quads
-        avgZ = np.zeros(self.elements.shape[0], dtype=float)
-        color = np.zeros(self.elements.shape[0], dtype=float)
-        for i in range(self.elements.shape[0]):
+        avgZ = np.zeros(len(self.elements), dtype=float)
+        color = np.zeros(len(self.elements), dtype=float)
+        for i in range(len(self.elements)):
             avgZ[i] = np.mean([self.points[vertex].dist(self.Tr, self.Tt) for vertex in self.elements[i].v])
             color[i] = self.prange[0] + (np.mean([self.points[vertex].rms(self.dscale) for vertex in self.elements[i].v]) - self.prange[0]) / self.prange[1]
 

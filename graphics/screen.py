@@ -28,6 +28,7 @@ class Screen:
         """
         # create coordinates starting in center of screen
         coors = (np.array(points, dtype='int32') + self.zeros).flatten().tolist()
+        print(coors)
         if type(color) in (np.ndarray, tuple, list):
             color = f'#{color[0]:02x}{color[1]:02x}{color[2]:02x}'
         # draw element on screen
@@ -38,10 +39,17 @@ class Screen:
             self.image.create_line(*coors, fill=color, arrow=tkinter.NONE)
         # draw mass element
         else:
-            coors = np.hstack((coors + 10, coors - 10)).flatten()
-            self.image.create_oval(*coors, fill=color, outline="black")
+            r = 10
+            # coors = np.hstack((coors + 10, coors - 10)).flatten()
+            self.image.create_oval(coors[0]-r, coors[1]-r, coors[0]+r, coors[1]+r, fill=color, outline="black")
 
-    def createSupport(self, point: np.ndarray, size: float, color):
+    def createSupport(self, point: np.ndarray, size: float, color='black'):
+        # create coordinates starting in center of screen
+        coors = np.hstack((point - size/2, point + size/2)).flatten()
+        # draw circle on screen
+        self.image.create_oval(*coors, fill=color, outline="black")
+
+    def createVertex(self, point: np.ndarray, size: float, color='blue'):
         # create coordinates starting in center of screen
         coors = np.hstack((point - size/2, point + size/2)).flatten()
         # draw circle on screen
