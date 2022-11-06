@@ -156,6 +156,26 @@ class Engine3D:
         self.render()
         self.deform = deform
 
+    def __camera_move(self, event):
+        print('moving model')
+        print(f'x: {event.x}')
+        print(f'y: {event.y}')
+        if self.__move_prev:
+            self.screen.zeros[0] -= (self.__move_prev[0] - event.x)
+            self.screen.zeros[1] -= (self.__move_prev[1] - event.y)
+            self.clear()
+            deform = self.deform
+            self.deform = False
+            self.render()
+            self.deform = deform
+        self.__move_prev = [event.x, event.y]
+        self.__save_deform(event)
+
+    def __reset_camera(self, event):
+        print('unmoving model')
+        self.__move_prev = []
+        self.__restore_deform(event)
+
     def __deform(self, event):
         self.deform = not self.deform
 
@@ -205,12 +225,6 @@ class Engine3D:
             valmin = np.mean([self.points[vertex].rms(0.) for vertex in self.elements[i].v])
             dmax = max(dmax, valmin, valmax)
             dmin = min(dmax, valmin, valmax)
-            # dmin = val if val < dmin else dmin
-            # dmax = val if val > dmax else dmax
-        # for i in range(self.points.shape[0]):
-        #     val = self.points[i].rms(1.)
-        #     dmin = val if val < dmin else dmin
-        #     dmax = val if val > dmax else dmax
         return np.array([dmin, dmax], dtype=float)
 
     def color(self, fraction):
@@ -224,13 +238,14 @@ class Engine3D:
         f = (fraction - i / (n - 1)) * (n - 1)
 
         col = (int(col1[0] + (col2[0] - col1[0]) * f), int(col1[1] + (col2[1] - col1[1]) * f), int(col1[2] + (col2[2] - col1[2]) * f))
-        # print(f'{col} - #{col[0]:02x}{col[1]:02x}{col[2]:02x}')
 
-        # return f'#{col[0]:02x}{col[1]:02x}{col[2]:02x}'
         return col
 
     def writePoints(self, points, displacement):
-        self.points = np.array([graphics.vertex.Vertex(points[i,:], displacement[:,i,:]) for i in range(points.shape[0])])
+        if displacement is not None:
+            self.points = np.array([graphics.vertex.Vertex(points[i,:], displacement[:,i,:]) for i in range(points.shape[0])])
+        else:
+            self.points = np.array([graphics.vertex.Vertex(points[i,:]) for i in range(points.shape[0])])
 
     def writeElements(self, elements):
         self.elements = np.array([graphics.face.Element(element) for element in elements])
@@ -330,14 +345,18 @@ class Engine3D:
         self.screen.window.bind('<KeyPress>', self.__save_deform)
         self.screen.window.bind('<KeyRelease>', self.__restore_deform)
 
+        # move the model
+        self.screen.window.bind('<B2-Motion>', self.__camera_move)
+        self.screen.window.bind('<ButtonRelease-2>', self.__reset_camera)
+
         # this is for editing the model
-        self.screen.window.bind('<ButtonPress-3>', self.__select)
-        self.screen.window.bind('<ButtonRelease-3>', self.__deselect)
-        self.screen.window.bind('x', self.__selectx)
-        self.screen.window.bind('y', self.__selecty)
-        self.screen.window.bind('z', self.__selectz)
-        self.screen.window.bind('<Left>', self.__movedown)
-        self.screen.window.bind('<Right>', self.__moveup)
+        # self.screen.window.bind('<ButtonPress-3>', self.__select)
+        # self.screen.window.bind('<ButtonRelease-3>', self.__deselect)
+        # self.screen.window.bind('x', self.__selectx)
+        # self.screen.window.bind('y', self.__selecty)
+        # self.screen.window.bind('z', self.__selectz)
+        # self.screen.window.bind('<Left>', self.__movedown)
+        # self.screen.window.bind('<Right>', self.__moveup)
 
     def __init__(self, points, elements, displacement=None, width=1000, height=700, distance=6, scale=100, title='3D', background='white', num_steps=11, projection='perspective'):
         # object parameters
@@ -373,13 +392,6 @@ class Engine3D:
         self.flattened = []
 
         # store faces
-        # self.elements = []
-        # if lines is not None:
-        #     self.writeLines(lines)
-        # if triangles is not None:
-        #     self.writeTriangles(triangles)
-        # if quads is not None:
-        #     self.writeQuads(quads)
         self.writeElements(elements)
 
         # displacement
