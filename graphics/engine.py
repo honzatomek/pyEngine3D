@@ -180,6 +180,8 @@ class Engine3D:
         self.deform = not self.deform
 
     def get_model_extents(self, points):
+        if not isinstance(points, np.ndarray):
+            points = np.array(points)
         Xmin = points.min(axis=0)
         Xmax = points.max(axis=0)
         return np.vstack((Xmin, Xmax, 0.5 * (Xmin + Xmax)))

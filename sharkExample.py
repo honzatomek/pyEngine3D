@@ -1,5 +1,6 @@
 ### Shark ###
 
+import numpy as np
 import graphics.engine
 
 points = []
@@ -22,11 +23,11 @@ with open('coords/SharkT.txt', 'r') as f:
         triangles.append(newCoords)
     f.close()
 
-test = graphics.engine.Engine3D(points, triangles, scale=100, title='Shark')
+test = graphics.engine.Engine3D(np.array(points), np.array(triangles), scale=100, title='Shark')
 
 def animation():
     test.clear()
-    test.rotate('y', 0.1)
+    # test.rotate_view('y', 0.1)
     test.render()
     test.screen.after(1, animation)
 
